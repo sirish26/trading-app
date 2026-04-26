@@ -1,0 +1,9 @@
+xgboost
+pandas
+pymongo
+fastapi
+uvicorn
+scikit-learn
+pydantic
+python-dotenv
+google-generativeai

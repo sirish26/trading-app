@@ -1,0 +1,18 @@
+{
+  "name": "trading-app-ml-integration",
+  "version": "1.0.0",
+  "description": "Integration of ML layer into trading system",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "ml:train": "cd ml_service && python train.py",
+    "ml:serve": "cd ml_service && uvicorn app:app --reload"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.6.0",
+    "dotenv": "^17.4.2",
+    "kiteconnect": "^5.3.0",
+    "node-telegram-bot-api": "^0.67.0"
+  }
+}
