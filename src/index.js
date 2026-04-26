@@ -16,6 +16,8 @@ async function runLoginAutomation() {
     });
 }
 
+let sentSymbols = new Set();
+
 async function bootstrap() {
     const client = new MongoClient(process.env.MONGO_URI);
     await client.connect();
@@ -26,38 +28,71 @@ async function bootstrap() {
     const engine = new TradingEngine(db);
     const evaluator = new TradeEvaluator(db);
 
-    // 🕒 Schedule Daily Login Automation (8:45 AM IST)
-    // IST is UTC+5:30, so 3:15 AM UTC
+    // 🕒 1. Daily Reset & Login (8:45 AM)
     cron.schedule('15 3 * * *', async () => {
+        sentSymbols.clear(); // Reset sent symbols daily
         await runLoginAutomation();
     });
 
-    // 1. Start the Hourly Evaluator
-    console.log('🔄 Starting Trade Evaluator (Hourly)...');
+    // 🔄 2. Hourly Trade Evaluator (Profit/Loss Tracker)
     setInterval(async () => {
         try {
             await evaluator.runHourlyCheck();
-            console.log('✅ Hourly Price Check Completed');
-        } catch (e) {
-            console.error('❌ Evaluator Error:', e.message);
-        }
+        } catch (e) { console.error('Evaluator Error:', e.message); }
     }, 60 * 60 * 1000);
 
-    // 2. Initial Run
-    await evaluator.runHourlyCheck();
+    // 📡 3. Continuous Scanner (High Frequency)
+    const WATCHLIST = ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'HINDUNILVR', 'ITC', 'SBIN', 'BHARTIARTL', 'BAJFINANCE', 'ADANIENT', 'TITAN', 'LT', 'AXISBANK'];
+    
+    console.log('📡 Continuous Scanner Active...');
 
-    // 3. Example Scanner (How to trigger the engine)
-    console.log('📡 System Ready. Scanning for signals...');
-    
-    // In a real scenario, you'd fetch a list of stocks from Zerodha or a Watchlist
-    // Here is how you would call the engine:
-    /*
-    const signals = await kite.getScannerSignals(); 
-    for (const signal of signals) {
-        await engine.evaluateTrade(signal);
-    }
-    */
-    
+    setInterval(async () => {
+        // Only scan during market hours (9:15 AM - 3:30 PM IST)
+        const now = new Date();
+        const hour = now.getUTCHours() + 5; // Simple IST conversion
+        const minute = now.getUTCMinutes() + 30;
+        const totalMinutes = hour * 60 + minute;
+
+        if (totalMinutes < 555 || totalMinutes > 930) return; // Outside 9:15-15:30
+
+        const trend = await kite.getNiftyTrend();
+        if (!trend.isBullish) return;
+
+        for (const symbol of WATCHLIST) {
+            if (sentSymbols.has(symbol)) continue; // 🚫 Skip if already sent today
+
+            try {
+                const fullSymbol = `NSE:${symbol}`;
+                const ltp = await kite.getLTP([fullSymbol]);
+                const price = ltp[fullSymbol].last_price;
+                
+                const tradeData = {
+                    symbol: symbol,
+                    entryPrice: price,
+                    targetPrice: price * 1.05,
+                    stopLoss: price * 0.97,
+                    score: 78, // Placeholder for rule-based engine
+                    volumeRatio: 1.8,
+                    indicators: {
+                        rsi: 65,
+                        ema20: price * 0.99,
+                        ema50: price * 0.96,
+                        macd: 1
+                    }
+                };
+
+                const result = await engine.evaluateTrade(tradeData);
+                
+                // If the engine actually sent a signal, mark it as sent
+                if (result && result.shouldExecute) {
+                    sentSymbols.add(symbol);
+                }
+            } catch (e) {
+                console.error(`Error scanning ${symbol}:`, e.message);
+            }
+        }
+    }, 5 * 60 * 1000); // Scan every 5 minutes
+
     console.log('🚀 Trading System is Live.');
 }
 

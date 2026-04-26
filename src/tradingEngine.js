@@ -34,8 +34,8 @@ class TradingEngine {
             score: tradeData.score
         });
 
-        if (mlProb < 0.6) {
-            console.log(`Filtering trade: ML Probability ${mlProb} below threshold 0.6`);
+        if (mlProb < 0.65) {
+            console.log(`Filtering trade: ML Probability ${mlProb} below threshold 0.65`);
             return null;
         }
 
@@ -43,6 +43,11 @@ class TradingEngine {
         const mlWeight = tradeCount >= 300 ? 0.4 : 0.2;
         const ruleWeight = 1 - mlWeight;
         const finalScore = (ruleWeight * tradeData.score) + (mlWeight * mlProb * 100);
+
+        if (finalScore < 75) {
+            console.log(`Filtering trade: Final Score ${finalScore} below threshold 75`);
+            return null;
+        }
 
         // 5. Reasoning (Gemini) - Explains but doesn't decide
         const explanation = await reasoning.getReasoning(tradeData.symbol, {
