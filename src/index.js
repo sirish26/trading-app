@@ -19,6 +19,15 @@ async function runLoginAutomation() {
 let sentSymbols = new Set();
 
 async function bootstrap() {
+    const required = ['MONGO_URI', 'KITE_API_KEY', 'KITE_API_SECRET', 'KITE_USERNAME', 'KITE_PASSWORD', 'KITE_TOTP_SECRET'];
+    const missing = required.filter(key => !process.env[key]);
+    
+    if (missing.length > 0) {
+        console.error(`❌ ERROR: Missing required variables: ${missing.join(', ')}`);
+        console.error("Please add them in the Railway Variables tab.");
+        process.exit(1);
+    }
+
     const client = new MongoClient(process.env.MONGO_URI);
     await client.connect();
     const db = client.db(process.env.DB_NAME);

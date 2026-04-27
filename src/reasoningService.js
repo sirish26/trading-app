@@ -3,7 +3,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 class ReasoningService {
     constructor() {
         this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        this.model = this.genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
     }
 
     async getReasoning(stock, features, mlProb, finalScore) {

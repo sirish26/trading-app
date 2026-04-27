@@ -5,16 +5,16 @@ const axios = require('axios');
 const KiteConnect = require("kiteconnect").KiteConnect;
 
 async function updateRailwayVariable(newValue) {
-    const { RAILWAY_API_KEY, RAILWAY_PROJECT_ID, RAILWAY_SERVICE_ID } = process.env;
+    const { RAILWAY_API_KEY, RAILWAY_PROJECT_ID, RAILWAY_SERVICE_ID, RAILWAY_ENVIRONMENT_ID } = process.env;
     
-    if (!RAILWAY_API_KEY || !RAILWAY_PROJECT_ID || !RAILWAY_SERVICE_ID) {
+    if (!RAILWAY_API_KEY || !RAILWAY_ENVIRONMENT_ID || !RAILWAY_SERVICE_ID) {
         console.warn("⚠️ Railway variables missing. Skipping auto-update.");
         return;
     }
 
     const query = `
-        mutation variableUpsert($projectId: String!, $serviceId: String!, $name: String!, $value: String!) {
-            variableUpsert(projectId: $projectId, serviceId: $serviceId, name: $name, value: $value)
+        mutation variableUpsert($projectId: String!, $serviceId: String!, $environmentId: String!, $name: String!, $value: String!) {
+            variableUpsert(projectId: $projectId, serviceId: $serviceId, environmentId: $environmentId, name: $name, value: $value)
         }
     `;
 
@@ -24,6 +24,7 @@ async function updateRailwayVariable(newValue) {
             variables: {
                 projectId: RAILWAY_PROJECT_ID,
                 serviceId: RAILWAY_SERVICE_ID,
+                environmentId: RAILWAY_ENVIRONMENT_ID,
                 name: 'KITE_ACCESS_TOKEN',
                 value: newValue
             }
@@ -56,12 +57,18 @@ async function automate() {
         await page.click('button[type="submit"]');
 
         console.log("🔐 Entering TOTP...");
-        await page.waitForSelector('input[label="External TOTP"]');
+        // Zerodha TOTP input is usually the only number input or has a specific placeholder
+        await page.waitForSelector('input', { visible: true });
+        
+        // Generate TOTP
         const token = otplib.authenticator.generate(KITE_TOTP_SECRET);
-        await page.type('input[label="External TOTP"]', token);
+        
+        // Try to find the correct input (Zerodha often uses a custom component)
+        await page.type('input', token); 
         await page.click('button[type="submit"]');
 
-        await page.waitForNavigation();
+        console.log("⏳ Waiting for redirect...");
+        await page.waitForNavigation({ waitUntil: 'networkidle2' });
         const requestToken = new URL(page.url()).searchParams.get('request_token');
 
         if (requestToken) {
