@@ -5,16 +5,20 @@ class TelegramService {
         this.token = process.env.TELEGRAM_BOT_TOKEN;
         this.chatId = process.env.TELEGRAM_CHAT_ID;
         if (this.token) {
-            this.bot = new TelegramBot(this.token, { polling: true });
+            this.bot = new TelegramBot(this.token, { polling: false });
         }
     }
 
     async sendMessage(message) {
         if (!this.bot || !this.chatId) return;
-        try {
-            await this.bot.sendMessage(this.chatId, message, { parse_mode: 'Markdown' });
-        } catch (error) {
-            console.error('Telegram Error:', error.message);
+        const ids = this.chatId.split(',').map(id => id.trim());
+        
+        for (const id of ids) {
+            try {
+                await this.bot.sendMessage(id, message, { parse_mode: 'Markdown' });
+            } catch (error) {
+                console.error(`Telegram Error for ID ${id}:`, error.message);
+            }
         }
     }
 
