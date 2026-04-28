@@ -58,14 +58,20 @@ async function automate() {
         await page.click('button[type="submit"]');
 
         console.log("🔐 Entering TOTP...");
-        // Zerodha TOTP input is usually the only number input or has a specific placeholder
-        await page.waitForSelector('input', { visible: true });
         
+        // Wait for the login screen to transition to the 2FA screen (password field disappears)
+        await page.waitForFunction(() => !document.querySelector('#password'), { timeout: 15000 });
+        
+        // Short pause to ensure the new form is fully interactive
+        await new Promise(r => setTimeout(r, 1000));
+
         // Generate TOTP
         const token = otplib.authenticator.generate(KITE_TOTP_SECRET);
         
-        // Try to find the correct input (Zerodha often uses a custom component)
-        await page.type('input', token); 
+        // The 2FA input is usually auto-focused or is the main visible text/number input
+        const totpInput = await page.waitForSelector('input[type="text"], input[type="number"], input[type="password"]', { visible: true });
+        await totpInput.type(token);
+        
         await page.click('button[type="submit"]');
 
         console.log("⏳ Waiting for redirect...");
