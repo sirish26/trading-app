@@ -6,17 +6,32 @@ const kite = require('./kiteService');
 const cron = require('node-cron');
 const { spawn } = require('child_process');
 
+let sentSymbols = new Set();
+let isAuthenticating = false;
+
 async function runLoginAutomation() {
+    if (isAuthenticating) return;
+    isAuthenticating = true;
     console.log('🤖 Running Daily Login Automation...');
     return new Promise((resolve) => {
         const child = spawn('node', ['src/automateLogin.js']);
-        child.stdout.on('data', (data) => console.log(`[Auth]: ${data}`));
+        child.stdout.on('data', (data) => {
+            const output = data.toString();
+            console.log(`[Auth]: ${output}`);
+            const match = output.match(/✅ New Token:\s*([A-Za-z0-9]+)/);
+            if (match) {
+                const token = match[1];
+                kite.setAccessToken(token);
+                console.log('🔑 Access token updated in memory.');
+            }
+        });
         child.stderr.on('data', (data) => console.error(`[Auth-Error]: ${data}`));
-        child.on('close', resolve);
+        child.on('close', () => {
+            isAuthenticating = false;
+            resolve();
+        });
     });
 }
-
-let sentSymbols = new Set();
 
 async function bootstrap() {
     const required = ['MONGO_URI', 'KITE_API_KEY', 'KITE_API_SECRET', 'KITE_USERNAME', 'KITE_PASSWORD', 'KITE_TOTP_SECRET'];
@@ -98,6 +113,12 @@ async function bootstrap() {
                 }
             } catch (e) {
                 console.error(`Error scanning ${symbol}:`, e.message);
+                if (e.message.includes('Incorrect `api_key` or `access_token`') || e.message.includes('Incorrect api_key or access_token')) {
+                    if (!isAuthenticating) {
+                        console.log('🔑 Token expired or invalid. Triggering login automation...');
+                        runLoginAutomation().catch(console.error);
+                    }
+                }
             }
         }
     }, 5 * 60 * 1000); // Scan every 5 minutes

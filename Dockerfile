@@ -3,6 +3,12 @@ FROM nikolaik/python-nodejs:python3.11-nodejs20
 
 WORKDIR /app
 
+# Install Chromium for Puppeteer
+RUN apt-get update && apt-get install -y \
+    chromium \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Python dependencies
 COPY ml_service/requirements.txt ./ml_service/
 RUN pip install --no-cache-dir -r ml_service/requirements.txt

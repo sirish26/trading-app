@@ -6,7 +6,14 @@ class KiteService {
         this.apiKey = process.env.KITE_API_KEY;
         this.accessToken = process.env.KITE_ACCESS_TOKEN;
         this.kc = new KiteConnect({ api_key: this.apiKey });
-        this.kc.setAccessToken(this.accessToken);
+        if (this.accessToken) {
+            this.kc.setAccessToken(this.accessToken);
+        }
+    }
+
+    setAccessToken(token) {
+        this.accessToken = token;
+        this.kc.setAccessToken(token);
     }
 
     async getLTP(symbols) {
@@ -17,7 +24,7 @@ class KiteService {
     async getNiftyTrend() {
         try {
             const niftySymbol = "NSE:NIFTY 50";
-            const quote = await this.kc.getQuotes([niftySymbol]);
+            const quote = await this.kc.getQuote([niftySymbol]);
             const ltp = quote[niftySymbol].last_price;
             
             // Simplified EMA50 check (in production you'd fetch historical to calculate real EMA)
